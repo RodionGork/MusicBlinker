@@ -1,6 +1,6 @@
 <?php
 
-$fs = 11025; // sampling frequency
+$fs = 6000; // sampling frequency
 
 function bpf($f0, $q, $fs) {
     $w0 = 2 * M_PI * $f0 / $fs;
@@ -14,7 +14,7 @@ function bpf($f0, $q, $fs) {
     $a0 = 1 + $alpha;
     $a1 = -2 * $cos0;
     $a2 = 1 - $alpha;
-    $c0 = 65536;
+    $c0 = 65536 * 4;
     $c = $c0 / $a0;
     $b0 = round($b0 * $c);
     $b1 = round($b1 * $c);
@@ -77,7 +77,7 @@ function test($freq, $prn = false) {
     return $aOut / $aIn;
 }
 
-$filter = bpf(880, 7, $fs);
+$filter = bpf(1109, 13, $fs);
 echo "Coeffs A: " . implode(', ', $filter['a']) . "\n";
 echo "Coeffs B: " . implode(', ', $filter['b']) . "\n";
 
