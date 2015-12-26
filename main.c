@@ -3,6 +3,8 @@
 #define INPUT_SIZE 1024
 #define BUFFER_SIZE 4
 #define FILTERS_N 5
+#define PWM_DIV 5500
+#define SPEED_MAX 40
 
 char hex[] = "0123456789ABCDEF";
 short x = 0;
@@ -19,6 +21,8 @@ int filters[FILTERS_N][3] = {
 };
 int y2s[FILTERS_N];
 short count;
+char curSpeed = 0;
+char prevFlag = 0;
 
 void send(char c) {
     while ((U0LSR & BIT5) == 0);
@@ -37,15 +41,31 @@ void sendi(int x, int d) {
     }
 }
 
+
+void speed(int wheel, int percent) {
+    if (percent) {
+        percent = (75 - percent * 3 / 4) * (PWM_DIV / 100);
+    } else {
+        percent = PWM_DIV;
+    }
+    if (!wheel) {
+        TMR16B0MR0 = percent;
+    } else {
+        TMR16B0MR1 = percent;
+    }
+}
+
 int main() {
     int n;
     
     SYSAHBCLKCTRL |= BIT16; // clock for IOCON
     IOCON_PIO1_6 = 0x01;
     IOCON_PIO1_7 = 0x01;
+    IOCON_PIO0_8 = 0x02;
+    IOCON_PIO0_9 = 0x02;
     IOCON_R_PIO0_11 = 0x02;
     IOCON_SWCLK_PIO0_10 = 0x01;
-    SYSAHBCLKCTRL |= BIT6 | BIT7 | BIT12 | BIT13; // clock for TC16-0, UART and ADC
+    SYSAHBCLKCTRL |= BIT6 | BIT7 | BIT8 | BIT12 | BIT13; // clock for TC16-0, UART and ADC
     GPIO0DIR |= BIT4 | BIT8 | BIT9 | BIT10; // PIO0_4, 8, 9, 10 as output
     
     PDRUNCFG &= ~BIT4; // ADC power on
@@ -58,11 +78,19 @@ int main() {
     U0LCR = 0x03;
     U0FCR = 0x07;
     
-    TMR16B0MCR = 3;
-    TMR16B0MR0 = 1999;
-    TMR16B0TCR = 1;
+    TMR16B1MCR = 3;
+    TMR16B1MR0 = 1999;
+    TMR16B1TCR = 1;
     
-    ISER = BIT16 | BIT24; // interrupts from TC16-0 and ADC
+    TMR16B0TCR = 1;
+    TMR16B0MR3 = PWM_DIV - 1;
+    TMR16B0MCR = (2 << 9);
+    TMR16B0PWMC = 3;
+    speed(0, curSpeed);
+    speed(1, curSpeed);
+    
+    
+    ISER = BIT17 | BIT24; // interrupts from TC16-1 and ADC
     AD0INTEN = 0x100;
     asm("CPSIE i");
     
@@ -80,20 +108,32 @@ void process() {
         //send(' ');
     }
     send(13);
-    if (y2s[1] > (y2s[0] + y2s[2])) {
-        GPIO0DATA |= BIT8;
-    } else {
-        GPIO0DATA &= ~BIT8;
-    }
     if (y2s[2] > (y2s[1] + y2s[3])) {
-        GPIO0DATA |= BIT9;
+        if (prevFlag) {
+            if (curSpeed < 100) {
+                curSpeed += 20;
+            }
+        } else {
+            speed(0, 0);
+        }
     } else {
-        GPIO0DATA &= ~BIT9;
+        speed(0, curSpeed);
     }
     if (y2s[3] > (y2s[2] + y2s[4])) {
-        GPIO0DATA |= BIT10;
+        if (prevFlag) {
+            if (curSpeed > 0) {
+                curSpeed -= 20;
+            }
+        } else {
+            speed(1, 0);
+        }
     } else {
-        GPIO0DATA &= ~BIT10;
+        speed(1, curSpeed);
+    }
+    if (y2s[1] > (y2s[0] + y2s[2])) {
+        prevFlag = 1;
+    } else {
+        prevFlag = 0;
     }
 }
 
@@ -105,7 +145,7 @@ void resetValues() {
     count = 0;
 }
 
-void Tc160_Handler() {
+void Tc161_Handler() {
     if (count < INPUT_SIZE) {
         AD0CR = 0x1000003;
     } else if (count == INPUT_SIZE) {
@@ -113,7 +153,7 @@ void Tc160_Handler() {
         GPIO0DATA ^= BIT4;
         resetValues();
     }
-    TMR16B0IR = 1;
+    TMR16B1IR = 1;
 }
 
 void Adc_Handler() {

@@ -5,7 +5,7 @@ void start(void)
 	init();
 }
 void Default_Handler(void);
-void Tc160_Handler(void);
+void Tc161_Handler(void);
 void Adc_Handler(void);
 
 // The following are 'declared' in the linker script
@@ -48,11 +48,11 @@ const void * Vectors[] __attribute__((section(".vectors"))) ={
 	Default_Handler, 	/* PIO0_10 */
 	Default_Handler, 	/* PIO0_11 */
 	Default_Handler,	/* PIO1_0 */
-	Default_Handler ,  	/* C_CAN */
+	Default_Handler,  	/* C_CAN */
 	Default_Handler, 	/* SSP1 */
 	Default_Handler, 	/* I2C */
-	Tc160_Handler,   	/* CT16B0 */
-	Default_Handler, 	/* CT16B1 */
+	Default_Handler,   	/* CT16B0 */
+	Tc161_Handler,   	/* CT16B1 */
 	Default_Handler, 	/* CT32B0 */
 	Default_Handler, 	/* CT32B1 */
 	Default_Handler, 	/* SSP0 */
